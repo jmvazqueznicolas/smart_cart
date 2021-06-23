@@ -27,11 +27,5 @@ files = {
     'LABELMAP': os.path.join(paths['ANNOTATION_PATH'], LABEL_MAP_NAME)
 }
 
-"""
 for path in paths.values():
     os.system(f'mkdir -p {path}')
-"""
-
-if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection')):
-    models_path = paths['APIMODEL_PATH']
-    os.system(f'git clone https://github.com/tensorflow/models {models_path}')

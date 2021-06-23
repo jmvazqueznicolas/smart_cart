@@ -6,27 +6,34 @@ import os
 from config import files
 from config import paths
 
-#from object_detection.utils import label_map_util
-#from object_detection.utils import visualization_utils as viz_utils
-#from object_detection.builders import model_builder
-#from object_detection.utils import config_util
+from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils as viz_utils
+from object_detection.builders import model_builder
+from object_detection.utils import config_util
 
+
+# Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
+"""
 if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection')):
     models_path = paths['APIMODEL_PATH']
     os.system(f'git clone https://github.com/tensorflow/models {models_path}')
 
-# Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
-os.system("sudo apt install gcc")
-os.system("sudo apt  install protobuf-compiler")
-os.system("cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .")
+    os.system("sudo apt install gcc")
+    os.system("sudo apt  install protobuf-compiler")
+    os.system("cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .")
 
-
-VERIFICATION_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
-os.system(f"python {VERIFICATION_SCRIPT}")
+    VERIFICATION_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
+    os.system(f"python {VERIFICATION_SCRIPT}")
 """
 
-"""
-"""
+# Para llevar a cabo la ejecución se necesitan algunos archivos
+# 1.- Los archivos ckpt-3
+# 2.- pipeline.config
+# Estos deben de estar en la carpet /Tensorflow/workspace/models/[MODELO_UTILIZADO]/
+# Otro archivo necesario es
+# 1.- label_map.pbtxt
+# El cual debe estar en la carpeta Tensorflow/workspace/annotations/
+
 # Load pipeline config and build a detection model
 configs = config_util.get_configs_from_pipeline_file(files['PIPELINE_CONFIG'])
 detection_model = model_builder.build(model_config=configs['model'], is_training=False)
@@ -90,4 +97,3 @@ while cap.isOpened():
         cap.release()
         cv2.destroyAllWindows()
         break
-"""
