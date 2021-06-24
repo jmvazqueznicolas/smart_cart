@@ -6,11 +6,11 @@ import os
 from config import files
 from config import paths
 
-from object_detection.utils import label_map_util
-from object_detection.utils import visualization_utils as viz_utils
-from object_detection.builders import model_builder
-from object_detection.utils import config_util
-
+# Esta linea es para instalar la libreria para el sistema operativo
+"""
+os.system("sudo apt-get install libzbar0")
+"""
+from pyzbar import pyzbar
 
 # Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
 """
@@ -25,6 +25,11 @@ if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_d
     VERIFICATION_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
     os.system(f"python {VERIFICATION_SCRIPT}")
 """
+
+from object_detection.utils import label_map_util
+from object_detection.utils import visualization_utils as viz_utils
+from object_detection.builders import model_builder
+from object_detection.utils import config_util
 
 # Para llevar a cabo la ejecución se necesitan algunos archivos
 # 1.- Los archivos ckpt-3
@@ -49,16 +54,17 @@ def detect_fn(image):
     detections = detection_model.postprocess(prediction_dict, shapes)
     return prediction_dict, detections
 
+# Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
-	cap = cv2.VideoCapture(i)
-	width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-	height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-	if width>0:
-		break
+    cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    if width>0:
+        break
 
 category_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
-IMAGE_PATH = os.path.join(paths['IMAGE_PATH'], 'test', '05102009138.jpg')
-
 
 print(width, height)
 while cap.isOpened(): 
@@ -79,6 +85,33 @@ while cap.isOpened():
 
     label_id_offset = 1
     image_np_with_detections = image_np.copy()
+
+    # Selección de regiones con códigos de barras
+    boxes = np.squeeze([detections['detection_boxes']])
+    scores = np.squeeze([detections['detection_scores']])
+    min_score_tresh = 0.8
+    tboxes = boxes[scores > min_score_tresh]
+    
+    coor_boxes = []
+    for box in tboxes:
+        ymin, xmin, ymax, xmax = box
+        box_loc = [xmin*width, xmax*width, ymin*height, ymax*height]
+        box_loc_r = [round(loc) for loc in box_loc]
+        coor_boxes.append(box_loc_r)
+    
+    barcodes = pyzbar.decode(frame)
+    if len(barcodes)>0:
+        print("Se detecto un código")
+
+    # Permite recortar el código de barras de la imagen
+    for coor in coor_boxes:
+        crop_image = frame[coor[2]:coor[3], coor[0]:coor[1]]
+       # barcodes = pyzbar.decode(crop_image)
+       # print(len(barcodes))
+        cv2.imshow('Recorte', crop_image)
+        for barcode in barcodes:
+            code_value = barcode.data.decode("utf-8")
+            print(f"El código detectado es {code_value}")
 
     viz_utils.visualize_boxes_and_labels_on_image_array(
                 image_np_with_detections,
