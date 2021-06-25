@@ -112,7 +112,7 @@ while cap.isOpened():
     # Permite recortar el código de barras de la imagen
     for coor in coor_boxes:
         crop_image = frame[coor[2]:coor[3], coor[0]:coor[1]]
-        cv2.imshow('Código recortado', crop_image)
+        cv2.imshow('Codigo detectado', crop_image)
         barcodes = pyzbar.decode(crop_image)
         for barcode in barcodes:
             code_value = barcode.data.decode("utf-8")
