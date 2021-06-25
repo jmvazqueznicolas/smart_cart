@@ -6,10 +6,11 @@ import os
 from config import files
 from config import paths
 
-# Esta linea es para instalar la libreria para el sistema operativo
+# Esta linea es para instalar pzbar en el s.o. ya instalada se puede comentar
 """
 os.system("sudo apt-get install libzbar0")
 """
+
 from pyzbar import pyzbar
 
 # Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
@@ -39,14 +40,14 @@ from object_detection.utils import config_util
 # 1.- label_map.pbtxt
 # El cual debe estar en la carpeta Tensorflow/workspace/annotations/
 
-# Load pipeline config and build a detection model
+
+# Se cargan los archivos para generar el modelo de detección 
 configs = config_util.get_configs_from_pipeline_file(files['PIPELINE_CONFIG'])
 detection_model = model_builder.build(model_config=configs['model'], is_training=False)
-
-# Restore checkpoint
 ckpt = tf.compat.v2.train.Checkpoint(model=detection_model)
 ckpt.restore(os.path.join(paths['CHECKPOINT_PATH'], 'ckpt-3')).expect_partial()
 
+# Se define una función para el proceso de detección del código de barras
 @tf.function
 def detect_fn(image):
     image, shapes = detection_model.preprocess(image)
@@ -56,7 +57,7 @@ def detect_fn(image):
 
 # Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(i)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -64,23 +65,32 @@ for i in range(20):
     if width>0:
         break
 
+# Creación de las categorias
 category_index = label_map_util.create_category_index_from_labelmap(files['LABELMAP'])
 
-print(width, height)
+#Entrenamiento del modelo de detección de digitos.
+samples = np.loadtxt('generalsamples.data', np.float32)
+responses = np.loadtxt('generalresponses.data', np.float32)
+responses = responses.reshape((responses.size, 1))
+model = cv2.ml.KNearest_create()
+model.train(samples, cv2.ml.ROW_SAMPLE, responses)
+
+
+# Lectura continua de la cámara
 while cap.isOpened(): 
     ret, frame = cap.read()
     image_np = np.array(frame)
-    
     input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
+    
+    # Detección de los códigos de barras
     prediction_dict, detections = detect_fn(input_tensor)
-    #print('Este es el diccionario de predicciones')
-    #print(prediction_dict)
+
     num_detections = int(detections.pop('num_detections'))
     detections = {key: value[0, :num_detections].numpy()
                   for key, value in detections.items()}
     detections['num_detections'] = num_detections
 
-    # detection_classes should be ints.
+    # Decodificación de las detecciones
     detections['detection_classes'] = detections['detection_classes'].astype(np.int64)
 
     label_id_offset = 1
@@ -98,17 +108,12 @@ while cap.isOpened():
         box_loc = [xmin*width, xmax*width, ymin*height, ymax*height]
         box_loc_r = [round(loc) for loc in box_loc]
         coor_boxes.append(box_loc_r)
-    
-    barcodes = pyzbar.decode(frame)
-    if len(barcodes)>0:
-        print("Se detecto un código")
 
     # Permite recortar el código de barras de la imagen
     for coor in coor_boxes:
         crop_image = frame[coor[2]:coor[3], coor[0]:coor[1]]
-       # barcodes = pyzbar.decode(crop_image)
-       # print(len(barcodes))
-        cv2.imshow('Recorte', crop_image)
+        cv2.imshow('Código recortado', crop_image)
+        barcodes = pyzbar.decode(crop_image)
         for barcode in barcodes:
             code_value = barcode.data.decode("utf-8")
             print(f"El código detectado es {code_value}")
