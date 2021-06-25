@@ -129,7 +129,7 @@ while cap.isOpened():
                 min_score_thresh=.8,
                 agnostic_mode=False)
     imagen = cv2.resize(image_np_with_detections, (800, 600))
-    cv2.imshow('object detection', imagen)
+    cv2.imshow('Deteccion del codigo', imagen)
     
     if cv2.waitKey(10) & 0xFF == ord('q'):
         cap.release()
