@@ -5,6 +5,7 @@ import tensorflow as tf
 import os
 from config import files
 from config import paths
+import time
 
 # Esta linea es para instalar pzbar en el s.o. ya instalada se puede comentar
 """
@@ -59,8 +60,8 @@ def detect_fn(image):
 # Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
     cap = cv2.VideoCapture(0)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     if width>0:
@@ -77,6 +78,8 @@ model = cv2.ml.KNearest_create()
 model.train(samples, cv2.ml.ROW_SAMPLE, responses)
 
 
+cont_detec = 0
+t0 = time.time()
 # Lectura continua de la cámara
 while cap.isOpened(): 
     ret, frame = cap.read()
@@ -118,6 +121,8 @@ while cap.isOpened():
         for barcode in barcodes:
             code_value = barcode.data.decode("utf-8")
             print(f"El código detectado es {code_value}")
+            cont_detec += 1
+            print(f"El número codigos detectados es: {cont_detec}")
 
     viz_utils.visualize_boxes_and_labels_on_image_array(
                 image_np_with_detections,
@@ -131,7 +136,12 @@ while cap.isOpened():
                 agnostic_mode=False)
     imagen = cv2.resize(image_np_with_detections, (800, 600))
     cv2.imshow('Deteccion del codigo', imagen)
-    
+    t1 = time.time()
+    tiempo = t1 - t0
+    print(f'El tiempo es {tiempo}')
+    frames = 1/tiempo
+    t0 = t1
+    print(f'Frames por segundo: {frames}')
     if cv2.waitKey(10) & 0xFF == ord('q'):
         cap.release()
         cv2.destroyAllWindows()
