@@ -9,6 +9,8 @@ from config import paths
 # Esta linea es para instalar pzbar en el s.o. ya instalada se puede comentar
 """
 os.system("sudo apt-get install libzbar0")
+os.system("sudo apt install gcc")
+os.system("pip install pyzbar")
 """
 
 from pyzbar import pyzbar
@@ -19,7 +21,6 @@ if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_d
     models_path = paths['APIMODEL_PATH']
     os.system(f'git clone https://github.com/tensorflow/models {models_path}')
 
-    os.system("sudo apt install gcc")
     os.system("sudo apt  install protobuf-compiler")
     os.system("cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .")
 
@@ -57,7 +58,7 @@ def detect_fn(image):
 
 # Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
-    cap = cv2.VideoCapture(i)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
