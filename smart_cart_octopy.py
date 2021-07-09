@@ -14,6 +14,12 @@ os.system("sudo apt install gcc")
 os.system("pip install pyzbar")
 """
 
+os.system("v4l2-ctl -d /dev/video0 --list-ctrls")
+os.system("v4l2-ctl -d /dev/video0 --set-ctrl=focus_auto=0")
+os.system("v4l2-ctl -d /dev/video0 --set-ctrl=focus_absolute=70")
+os.system("v4l2-ctl -d /dev/video0 --list-ctrls")
+
+
 from pyzbar import pyzbar
 
 # Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
@@ -47,7 +53,7 @@ from object_detection.utils import config_util
 configs = config_util.get_configs_from_pipeline_file(files['PIPELINE_CONFIG'])
 detection_model = model_builder.build(model_config=configs['model'], is_training=False)
 ckpt = tf.compat.v2.train.Checkpoint(model=detection_model)
-ckpt.restore(os.path.join(paths['CHECKPOINT_PATH'], 'ckpt-3')).expect_partial()
+ckpt.restore(os.path.join(paths['CHECKPOINT_PATH'], 'ckpt-5')).expect_partial()
 
 # Se define una función para el proceso de detección del código de barras
 @tf.function
@@ -60,10 +66,11 @@ def detect_fn(image):
 # Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
     cap = cv2.VideoCapture(0)
-    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    #cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    #cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    print(width, height)
     if width>0:
         break
 
@@ -138,10 +145,10 @@ while cap.isOpened():
     cv2.imshow('Deteccion del codigo', imagen)
     t1 = time.time()
     tiempo = t1 - t0
-    print(f'El tiempo es {tiempo}')
+    #print(f'El tiempo es {tiempo}')
     frames = 1/tiempo
     t0 = t1
-    print(f'Frames por segundo: {frames}')
+    #print(f'Frames por segundo: {frames}')
     if cv2.waitKey(10) & 0xFF == ord('q'):
         cap.release()
         cv2.destroyAllWindows()
