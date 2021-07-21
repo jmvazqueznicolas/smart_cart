@@ -98,11 +98,9 @@ t0 = time.time()
 
 # Diccionario de productos
 productos = {'7501088210709':'Cremino', '7501791600682':'Cafe soluble', '725226003504':'Pulparindo', '0025046021499':'Duvalin',
-            '7501025405694':'Toallitas', '7501954906644':'Cafe de grano'}
+            '7501025405694':'Toallitas', '7501954906644':'Cafe de grano', '7501032923662':'Oust'}
 carrito = []
-
 producto_detec = {'nombre':'Sin producto', 'codigo':''}
-
 
 # Funciones básicas de pre-procesamiento
 # Escala de grises
@@ -115,6 +113,61 @@ def thresholding(image):
 def dilate(image):
     kernel = np.ones((2,2),np.uint8)
     return cv2.dilate(image, kernel, iterations = 1)
+
+# Función para la detección del productos
+def deteccion_producto(crop_image):
+    # Producto no existente
+    producto_detec = {'nombre':'Sin producto', 'codigo':''}
+    # Procesamiento para el OCR
+    ocr_gris = get_grayscale(crop_image)
+    ocr_bin = thresholding(ocr_gris)
+    output = cv2.connectedComponentsWithStats(ocr_bin, 8, cv2.CV_32S)
+    (numLabels, labels, stats, centroids) = output
+    mask = np.zeros(ocr_gris.shape, dtype="uint8")
+    # Se eliminan las regiones largas y delgadas (lineas del código de barras)
+    for i in range(1, numLabels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        x = stats[i, cv2.CC_STAT_LEFT]
+        y = stats[i, cv2.CC_STAT_TOP]
+        w = stats[i, cv2.CC_STAT_WIDTH]
+        h = stats[i, cv2.CC_STAT_HEIGHT]
+        keepHeight = h < 50 #and h < 65
+        keepWidth = w < 50 #and w < 50
+        if all((keepHeight, keepWidth)):
+            #print("[INFO] keeping connected component '{}'".format(i))
+            componentMask = (labels == i).astype("uint8") * 255
+            mask = cv2.bitwise_or(mask, componentMask)
+
+    crop_for_ocr = mask[int(0.7*mask.shape[0]):mask.shape[0], 0:mask.shape[1]]
+    crop_for_ocr = dilate(crop_for_ocr)
+    crop_for_ocr = cv2.threshold(crop_for_ocr, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    codigo_ocr = pytesseract.image_to_string(crop_for_ocr, config=custom_config)
+    codigo_ocr = re.sub('\D', '', codigo_ocr)
+    
+    #Codigo de barras
+    barcode = pyzbar.decode(crop_image)
+    #for barcode in barcodes:
+    if barcode:
+        code_value = barcode[0].data.decode("utf-8")
+    else:
+        code_value = ''
+
+    # Producto nuevo?
+    if (producto_detec['codigo'] != (code_value or codigo_ocr)) and ((code_value or codigo_ocr) in productos):
+        # Se actualiza producto
+        try:
+            producto_detec = {'nombre':productos[code_value], 'codigo':code_value}
+        except:
+            producto_detec = {'nombre':productos[codigo_ocr], 'codigo':codigo_ocr}
+        nombre_producto = producto_detec['nombre']
+        confirmacion = input(f'Confirma comprar {nombre_producto} ')
+        if confirmacion == "si":
+            carrito.append(producto_detec['nombre'])
+            print('El contenido del carrito es: ')
+            for producto in carrito:
+                print(producto)
+    
+    return carrito
 
 # Lectura continua de la cámara
 while cap.isOpened(): 
@@ -163,54 +216,10 @@ while cap.isOpened():
     for coor in coor_boxes:
         crop_image = frame[coor[2]:coor[3], coor[0]:coor[1]]
         
+        # Preprocecado para girar el codigo
+        # y pasarle la imagen a la funcion deteccion_producto
+        result = deteccion_producto(crop_image)
         
-        # Procesamiento para el OCR
-        ocr_gris = get_grayscale(crop_image)
-        ocr_bin = thresholding(ocr_gris)
-        output = cv2.connectedComponentsWithStats(ocr_bin, 8, cv2.CV_32S)
-        (numLabels, labels, stats, centroids) = output
-        mask = np.zeros(ocr_gris.shape, dtype="uint8")
-        # Se eliminan las regiones largas y delgadas (lineas del código de barras)
-        for i in range(1, numLabels):
-            area = stats[i, cv2.CC_STAT_AREA]
-            x = stats[i, cv2.CC_STAT_LEFT]
-            y = stats[i, cv2.CC_STAT_TOP]
-            w = stats[i, cv2.CC_STAT_WIDTH]
-            h = stats[i, cv2.CC_STAT_HEIGHT]
-            keepHeight = h < 50 #and h < 65
-            keepWidth = w < 50 #and w < 50
-            if all((keepHeight, keepWidth)):
-                #print("[INFO] keeping connected component '{}'".format(i))
-                componentMask = (labels == i).astype("uint8") * 255
-                mask = cv2.bitwise_or(mask, componentMask)
-
-        crop_for_ocr = mask[int(0.7*mask.shape[0]):mask.shape[0], 0:mask.shape[1]]
-        crop_for_ocr = dilate(crop_for_ocr)
-        crop_for_ocr = cv2.threshold(crop_for_ocr, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-        codigo_ocr = pytesseract.image_to_string(crop_for_ocr, config=custom_config)
-        codigo_ocr = re.sub('\D', '', codigo_ocr)
-        
-        #Codigo de barras
-        barcode = pyzbar.decode(crop_image)
-        #for barcode in barcodes:
-        if barcode:
-            code_value = barcode[0].data.decode("utf-8")
-        else:
-            code_value = ''
-
-        # Producto nuevo?
-        if (producto_detec['codigo'] != (code_value or codigo_ocr)) and ((code_value or codigo_ocr) in productos):
-            # Se actualiza producto
-            try:
-                producto_detec = {'nombre':productos[code_value], 'codigo':code_value}
-            except:
-                producto_detec = {'nombre':productos[codigo_ocr], 'codigo':codigo_ocr}
-            carrito.append(producto_detec['nombre'])
-            print('El contenido del carrito es: ')
-            for producto in carrito:
-                print(producto)
-            
-            
     viz_utils.visualize_boxes_and_labels_on_image_array(
                 image_np_with_detections,
                 detections['detection_boxes'],
