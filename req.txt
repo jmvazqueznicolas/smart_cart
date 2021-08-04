@@ -1,0 +1,22 @@
+# Instalaciones que se deben llevar a cabo en Ubuntu
+# sudo apt-get update -y
+# sudo apt-get install -y tesseract-ocr
+# sudo apt-get install libzbar0")
+# sudo apt install gcc
+
+# Instalación de TFOD
+
+#from config import files
+#from config import paths
+# Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
+"""
+if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection')):
+    models_path = paths['APIMODEL_PATH']
+    os.system(f'git clone https://github.com/tensorflow/models {models_path}')
+
+    os.system("sudo apt  install protobuf-compiler")
+    os.system("cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .")
+
+    VERIFICATION_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
+    os.system(f"python {VERIFICATION_SCRIPT}")
+"""

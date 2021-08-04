@@ -1,27 +1,51 @@
 import matplotlib.pyplot as plt
 import cv2
-import numpy as np
+from scipy import stats as st  
+import math
 import tensorflow as tf
 import os
+from config import files
+from config import paths
 import time
 import re
-import math
+import numpy as np
+
+# Este biblioteca requiere de:  
+# sudo apt-get update -y
+# sudo apt-get install -y tesseract-ocr     
 import pytesseract
-from scipy import stats as st  
 from pytesseract import Output
+
+# Estas linea son para instalar pzbar en el s.o. ya instalada se puede comentar
+"""
+os.system("sudo apt-get install libzbar0")
+os.system("sudo apt install gcc")
+os.system("pip install pyzbar")
+"""
+
 from pyzbar import pyzbar
+
+# Estas lineas son para configurar la cámara Logitech (Quitar autofocus)
+os.system("v4l2-ctl -d /dev/video0 --list-ctrls")
+os.system("v4l2-ctl -d /dev/video0 --set-ctrl=focus_auto=0")
+os.system("v4l2-ctl -d /dev/video0 --set-ctrl=focus_absolute=70")
+os.system("v4l2-ctl -d /dev/video0 --list-ctrls")
+
+# Estas lineas permiten instalar TensorFlow Object Detection API, una vez instalado se pueden comentar
+"""
+if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection')):
+    models_path = paths['APIMODEL_PATH']
+    os.system(f'git clone https://github.com/tensorflow/models {models_path}')
+    os.system("sudo apt  install protobuf-compiler")
+    os.system("cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .")
+    VERIFICATION_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
+    os.system(f"python {VERIFICATION_SCRIPT}")
+"""
+
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as viz_utils
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
-from config import files
-from config import paths
-
-# Estas lineas son para configurar la cámara Logitech (Quitar autofocus)
-os.system("v4l2-ctl -d /dev/video2 --list-ctrls")
-os.system("v4l2-ctl -d /dev/video2 --set-ctrl=focus_auto=0")
-os.system("v4l2-ctl -d /dev/video2 --set-ctrl=focus_absolute=35")
-os.system("v4l2-ctl -d /dev/video2 --list-ctrls")
 
 # Para llevar a cabo la ejecución se necesitan algunos archivos
 # 1.- Los archivos ckpt-*
@@ -47,7 +71,7 @@ def detect_fn(image):
 
 # Se utiliza el for para buscar la primer cámara disponible, en un sistema de multiples cámaras
 for i in range(20):
-    cap = cv2.VideoCapture(2)
+    cap = cv2.VideoCapture(0)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280) # 1920
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720) # 1080 
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -73,19 +97,9 @@ cont_detec = 0
 t0 = time.time()
 
 # Diccionario de productos
-productos = {'7501088210709':'Cremino', '7501791600682':'Cafe soluble', 
-            '725226003504':'Pulparindo', '0025046021499':'Duvalin',
-            '7501025405694':'Toallitas', '7501954906644':'Cafe de grano', 
-            '7501032923662':'Oust', '7501005196499':'Knorr',
-            '261002800003204':'Molida', '658480001101':'Salmas', 
-            '7501071308598':'Frijoles', '7501006559033':'ActII',
-            '7501025405090':'Cloralex', '744218120913':'Lucky Gummys', 
-            '7501017003341':'La Costena Mango', '7501045401195':'El Dorado',
-            '706460249439':'Pedigree', '7501039121610':'Nutrioli',
-            '7501003340122':'Mayonesa McCormick', '7502271450049':'Cuchara Bambu', 
-            '75071295':'Cigarros PallMall', '7502226294292':'Paracetamol',
-            '7501013122053':'Jumex Durazno', '80051671':'Nutella', 
-            '7501008042946':'Kelloggs Zucaritas', '7501020515350':'Leche Lala'}
+productos = {'7501088210709':'Cremino', '7501791600682':'Cafe soluble', '725226003504':'Pulparindo', '0025046021499':'Duvalin',
+            '7501025405694':'Toallitas', '7501954906644':'Cafe de grano', '7501032923662':'Oust', '7501573900443':'Paracetamol',
+            '7506306216051':'Rexona MEN', '7899846080672':'Gel de limpieza','7501005196499':'Knorr'}
 carrito = []
 producto_detec = {'nombre':'Sin producto', 'codigo':''}
 
@@ -101,7 +115,8 @@ def dilate(image):
     kernel = np.ones((2,2),np.uint8)
     return cv2.dilate(image, kernel, iterations = 1)
 
-def rotacion(crop_image):
+# Función para la detección del productos
+def deteccion_producto(crop_image):
     ####################
     gray = get_grayscale(crop_image)
     edges = cv2.Canny(gray,50,150,apertureSize = 3)
@@ -128,17 +143,14 @@ def rotacion(crop_image):
                 anguloDif = anguloD-180
 
                 M = cv2.getRotationMatrix2D(puntoRotacion, anguloDif, 1.0)
-                imagenRotada = cv2.warpAffine(crop_image, M, (ancho, alto))
+                imagenRotada = cv2.warpAffine(frame, M, (ancho, alto))
                 crop_image = cv2.flip(imagenRotada,-1)
     else:
         crop_image = crop_image
-    return crop_image
+    ####################
+    
+    cv2.imshow('Rotacion', crop_image)
 
-
-# Función para la detección del productos
-def deteccion_producto(crop_image):
-    #crop_image = rotacion(crop_image)
-    #cv2.imshow('Rotacion', crop_image)
     # Producto no existente
     producto_detec = {'nombre':'Sin producto', 'codigo':''}
     # Procesamiento para el OCR
@@ -238,6 +250,7 @@ while cap.isOpened():
     # Permite recortar el código de barras de la imagen
     for coor in coor_boxes:
         crop_image = frame[coor[2]:coor[3], coor[0]:coor[1]]
+        
         # Preprocecado para girar el codigo
         # y pasarle la imagen a la funcion deteccion_producto
         result = deteccion_producto(crop_image)
