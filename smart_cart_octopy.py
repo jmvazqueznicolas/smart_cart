@@ -176,6 +176,9 @@ def deteccion_producto(crop_image):
     else:
         code_value = ''
 
+
+
+
     # Producto nuevo?
     if (producto_detec['codigo'] != (code_value or codigo_ocr)) and ((code_value or codigo_ocr) in productos):
         # Se actualiza producto
