@@ -1,6 +1,6 @@
 import os
 
-CUSTOM_MODEL_NAME = 'my_ssd_mobnet' 
+CUSTOM_MODEL_NAME = 'my_ssd_mobnet_barras' 
 PRETRAINED_MODEL_NAME = 'ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8'
 PRETRAINED_MODEL_URL = 'http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz'
 TF_RECORD_SCRIPT_NAME = 'generate_tfrecord.py'
